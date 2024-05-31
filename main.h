@@ -43,10 +43,13 @@ inline namespace V1
 
 	std::vector<Piece> generate(std::vector<int>& values);
 	bool withinCircle(double cx, double cy, double cr, double px, double py);
-	int getId(int mouseX, int mouseY, std::vector<Piece>& p, std::vector<int>& ids);
-	void mouseButtonPressEvent(int mouseX, int mouseY, std::vector<Piece>& p, std::vector<int>& ids, int& currPiece, int& prevPiece, std::vector<bool>& possMoves);
+	int getId(int mouseX, int mouseY, const std::vector<Piece>& p, const std::vector<int>& ids, const std::pair<double,sf::IntRect>& scaleAndRect);
+	void mouseButtonPressEvent(int mouseX, int mouseY, std::vector<Piece>& p, std::vector<int>& ids, int& currPiece, int& prevPiece, std::vector<bool>& possMoves, const std::pair<double,sf::IntRect>& scaleAndRect);
+	std::pair<double, sf::IntRect> getScaleAndRectFromResizedEvent(sf::RenderWindow& window);
+	void updateCircles(int currPiece,const std::vector<Piece>& p,const std::vector<bool>& possMoves, std::vector<sf::CircleShape>& circles);
 	//void updateGraphics();
 	//void updateData();
+	// handleWindowResize
 	void updatePossibleMoves(int currPiece, std::vector<Piece>& p,  std::vector<bool>& possMoves);
 	void pushJumpMovesToStack(const std::vector<Piece>& p, int i, std::vector<int>& stack, std::vector<bool>& possMove);
 }

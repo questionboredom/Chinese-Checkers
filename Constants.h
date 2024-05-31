@@ -7,6 +7,7 @@ inline namespace V1
 	{
 		inline constexpr double selectShrinkFactor{ 0.8 };
 		inline constexpr double pieceRadius{ 30 };
+		inline constexpr double selectionRadius{ 30 * selectShrinkFactor };
 		inline constexpr double pieceDiameter{ pieceRadius*2 };
 		inline constexpr double yOffset{ std::numbers::sqrt3 * pieceRadius };
 		inline constexpr double xOffset{ pieceDiameter };

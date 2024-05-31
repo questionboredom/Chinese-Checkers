@@ -42,34 +42,31 @@ inline namespace V1
             circle.setPosition(static_cast<float>(p.at(i).x), static_cast<float>(p.at(i).y));
         }
         sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Chinese Checkers");
+        
         std::vector<bool> possMoves(p.size(), false);
+        std::pair<double, sf::IntRect> scaleAndRect{ 1,{0,0,windowWidth,windowHeight} };
         while (window.isOpen())
         {
             sf::Event event;
             while (window.pollEvent(event))
             {
-                if (event.type == sf::Event::Closed)
-                    window.close();
-                else if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left)
+                switch (event.type)
                 {
-                    mouseButtonPressEvent(event.mouseButton.x, event.mouseButton.y, p, m, currPiece, prevPiece, possMoves);
+                case sf::Event::Closed:
+                    window.close();
+                    break;
+                case sf::Event::Resized:
+                    scaleAndRect = getScaleAndRectFromResizedEvent(window);
+                    break;
+                case sf::Event::MouseButtonPressed:
+                    if (event.mouseButton.button == sf::Mouse::Left)
+                        mouseButtonPressEvent(event.mouseButton.x, event.mouseButton.y, p, m, currPiece, prevPiece, possMoves, scaleAndRect);
+                    break;
+                default:
+                    break;
                 }
             }
-            // update circles
-            for (int i{}; i < static_cast<int>(circles.size()); ++i)
-            {
-                
-                circles.at(i).setFillColor(pieceColors.at(p.at(i).value));
-                float r{static_cast<float>(pieceRadius*(possMoves.at(i)?selectShrinkFactor:1))};
-                circles.at(i).setOrigin(r, r);
-                circles.at(i).setRadius(r);
-            }
-            if (currPiece != -1)
-            {
-                float r{ static_cast<float>(pieceRadius*selectShrinkFactor) };
-                circles.at(currPiece).setOrigin(r, r);
-                circles.at(currPiece).setRadius(r);
-            }
+            updateCircles(currPiece, p, possMoves, circles);
             window.clear(backgroundColor);
             for(const sf::CircleShape& c: circles)
                 window.draw(c);
@@ -142,23 +139,37 @@ inline namespace V1
         }
         return p;
     }
-    int getId(int mouseX, int mouseY, std::vector<Piece>& p, std::vector<int>& ids)
+    int getId(int mouseX, int mouseY, const std::vector<Piece>& p, const std::vector<int>& ids, const std::pair<double,sf::IntRect>& scaleAndRect)
     {
         using namespace Constants;
         // check if mouse position is within 
         // approx pos from above
+        const double& scale{ scaleAndRect.first };
+        const sf::IntRect& rect{ scaleAndRect.second };
+        if (!rect.contains(mouseX, mouseY))
+        {
+            /*
+            std::cout << "not within rect\n";
+            std::cout << "position: (" << rect.left << ',' << rect.top << ")\n";
+            std::cout << "size: (" << rect.width << ',' << rect.height << ")\n";
+            */
+            return -1;
+        }
+            
+        //const double& xOffset2{ scaleAndOffset.at(1) };
+        //const double& yOffset2{ scaleAndOffset.at(2) };
         int y{ static_cast<int>(static_cast<double>(mouseY)/yOffset)};
         int x{-1};
         if (y % 2)
         {
-            if (mouseX > pieceRadius && mouseX <static_cast<int>(numOfCols)*xOffset-pieceRadius)
+            if (mouseX - rect.left > static_cast<int>(pieceRadius * scale) && mouseX - rect.left <static_cast<int>(numOfCols)*xOffset*scale-pieceRadius*scale)
             {
-                x = static_cast<int>((mouseX + pieceRadius) / xOffset);
+                x = static_cast<int>((mouseX - rect.left + pieceRadius*scale) / (xOffset*scale));
             }
         }
         else
         {
-            x = static_cast<int>(mouseX / xOffset);
+            x = static_cast<int>((mouseX -rect.left)/ (xOffset*scale));
         }
         //std::cout << "mouse position: " << x << ' ' << y << '\n';
         if (x >= 0 && x < static_cast<int>(numOfCols) && y>=0 && y < numOfRows)
@@ -166,25 +177,25 @@ inline namespace V1
             int i{ (y / 2) * (static_cast<int>(numOfCols) * 2 - 1) + (y % 2) * (static_cast<int>(numOfCols) - 1) + x };
             if (int id{ ids.at(i) }; id != -1)
             {
-                if (Piece& ap{ p.at(id) }; withinCircle(mouseX, mouseY, pieceRadius, ap.x, ap.y))
+                if (const Piece& ap{ p.at(id) }; withinCircle(mouseX-rect.left, mouseY-rect.top, pieceRadius*scale, ap.x*scale, ap.y*scale))
                 {
                     return id;
                 }
             }
         }
         // approx pos from below
-        y = static_cast<int>(static_cast<double>(mouseY-xOffset+yOffset) / yOffset);
+        y = static_cast<int>(static_cast<double>(mouseY-rect.top-xOffset*scale+yOffset*scale) / (yOffset*scale));
         x = -1;
         if (y % 2)
         {
-            if (mouseX > pieceRadius && mouseX < static_cast<int>(numOfCols) * xOffset - pieceRadius)
+            if (mouseX -rect.left> pieceRadius*scale && mouseX -rect.left< static_cast<int>(numOfCols) * xOffset * scale - pieceRadius * scale)
             {
-                x = static_cast<int>((mouseX + pieceRadius) / xOffset);
+                x = static_cast<int>((mouseX - rect.left + pieceRadius*scale) / (xOffset*scale));
             }
         }
         else
         {
-            x = static_cast<int>(mouseX / xOffset);
+            x = static_cast<int>((mouseX-rect.left )/ (xOffset*scale));
         }
         //std::cout << "mouse position: " << x << ' ' << y << '\n';
         if (x >= 0 && x < static_cast<int>(numOfCols) && y >= 0 && y < numOfRows)
@@ -192,7 +203,7 @@ inline namespace V1
             int i{ (y / 2) * (static_cast<int>(numOfCols) * 2 - 1) + (y % 2) * (static_cast<int>(numOfCols) - 1) + x };
             if (int id{ ids.at(i) }; id != -1)
             {
-                if (Piece& ap{ p.at(id) }; withinCircle(mouseX, mouseY, pieceRadius, ap.x, ap.y))
+                if (const Piece& ap{ p.at(id) }; withinCircle(mouseX-rect.left, mouseY-rect.top, pieceRadius*scale, ap.x*scale, ap.y*scale))
                 {
                     return id;
                 }
@@ -205,12 +216,31 @@ inline namespace V1
         double x{ cx - px }, y{ cy - py };
         return x * x + y * y <= cr * cr;
     }
-    void mouseButtonPressEvent(int mouseX, int mouseY, std::vector<Piece>& p, std::vector<int>& ids, int& currPiece, int& prevPiece, std::vector<bool>& possMoves)
+    std::pair<double, sf::IntRect> getScaleAndRectFromResizedEvent(sf::RenderWindow& window)
+    {
+        using namespace Constants;
+        sf::Vector2u size{ window.getSize() };
+        double xScale{ size.x / static_cast<double>(windowWidth)};
+        double yScale{ size.y /static_cast<double>(windowHeight)};
+        double scale{std::min(xScale,yScale)};
+        double left{ (1 - (scale / xScale)) * 0.5 };
+        double top{ (1 - (scale / yScale)) * 0.5 };
+        double xView{ scale / xScale };
+        double yView{ scale / yScale };
+        sf::View view{ window.getView() };
+        sf::FloatRect viewport{
+            static_cast<float>(left),static_cast<float>(top),static_cast<float>(xView), static_cast<float>(yView) };
+        view.setViewport(viewport);
+        window.setView(view);
+        sf::IntRect rect{static_cast<int>(left*size.x),static_cast<int>(top*size.y),static_cast<int>(xView*size.x),static_cast<int>(yView*size.y)};
+        return { scale,rect };
+    }
+    void mouseButtonPressEvent(int mouseX, int mouseY, std::vector<Piece>& p, std::vector<int>& ids, int& currPiece, int& prevPiece, std::vector<bool>& possMoves, const std::pair<double, sf::IntRect>& scaleAndRect)
     {
         using namespace Constants;
         // update currPiece
         prevPiece = currPiece;
-        currPiece = getId(mouseX, mouseY, p, ids);
+        currPiece = getId(mouseX, mouseY, p, ids, scaleAndRect);
         /*
         // test side ids
         std::fill(possMoves.begin(), possMoves.end(), false);
@@ -286,6 +316,24 @@ inline namespace V1
                     
                 }
             }
+        }
+    }
+    void updateCircles(int currPiece, const std::vector<Piece>& p, const std::vector<bool>& possMoves, std::vector<sf::CircleShape>& circles)
+    {
+        using namespace Constants;
+        for (int i{}; i < static_cast<int>(circles.size()); ++i)
+        {
+
+            circles.at(i).setFillColor(pieceColors.at(p.at(i).value));
+            float r{ static_cast<float>(possMoves.at(i) ? selectionRadius: pieceRadius) };
+            circles.at(i).setOrigin(r, r);
+            circles.at(i).setRadius(r);
+        }
+        if (currPiece != -1)
+        {
+            float r{ static_cast<float>(selectionRadius) };
+            circles.at(currPiece).setOrigin(r, r);
+            circles.at(currPiece).setRadius(r);
         }
     }
 }
